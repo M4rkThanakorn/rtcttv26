@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RTC TTV25 - Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { kanit: ['Kanit', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Kanit', sans-serif; }
+    .glassmorphism {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- นำ URL ที่ได้จาก Google Apps Script มาวางแทนที่ตรงนี้ -->
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzJsvDk5LbUe_ER4bNyG_6mdThvRUMWxG84QHtTa7QXrO5JQY2ZA7Jpnlo-nsc_RoNH/exec";
+  </script>
+
+  <!-- Login Modal (User: 1886 / Pass: 1234) -->
+  <div id="loginModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+    <div class="glassmorphism w-full max-w-md p-8 rounded-3xl shadow-2xl border border-yellow-500/30 text-center">
+      <div class="w-16 h-16 bg-gradient-to-tr from-yellow-500 to-amber-300 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-yellow-500/20">
+        <i class="fa-solid fa-shield-halved text-2xl text-slate-950"></i>
+      </div>
+      <h2 class="text-2xl font-bold mb-1 text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-500">RTC TTV25</h2>
+      <p class="text-slate-400 text-sm mb-6">เข้าสู่ระบบเพื่อเริ่มใช้งาน</p>
+      
+      <div class="space-y-4 text-left">
+        <div>
+          <label class="text-xs text-slate-400 mb-1 block">Username</label>
+          <input type="text" id="loginUser" placeholder="1886" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-500">
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 mb-1 block">Password</label>
+          <input type="password" id="loginPass" placeholder="1234" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-500">
+        </div>
+        <button onclick="handleLogin()" class="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-bold rounded-xl shadow-lg transition duration-200">
+          เข้าสู่ระบบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="glassmorphism sticky top-0 z-30 px-4 py-3 border-b border-slate-800">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-yellow-500 rounded-xl flex items-center justify-center text-slate-950 font-bold text-xl">
+          <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-none text-yellow-400">RTCTTV25</h1>
+          <span class="text-xs text-slate-400">ระบบจัดการคลังสินค้า RTC</span>
+        </div>
+      </div>
+      <span id="dataStatusBadge" class="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-full border border-red-500/30">
+        <i class="fa-solid fa-circle-exclamation mr-1"></i> ยังไม่ได้ดึงข้อมูล
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+    <!-- Step 1: Get Data System (Mandatory) -->
+    <section class="glassmorphism p-6 rounded-2xl border border-slate-800">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-cloud-arrow-down text-yellow-500"></i> ดึงข้อมูลคลังสินค้า (Get Data)
+          </h2>
+          <p class="text-sm text-slate-400">กด Get Data เพื่อโหลดข้อมูลสินค้าและ RTC ทั้งหมดก่อนเริ่มต้นใช้งาน</p>
+        </div>
+        <button id="btnGetData" onclick="fetchAppData()" class="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-slate-950 font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate"></i> GET DATA
+        </button>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="mt-4">
+        <div class="flex justify-between text-xs text-slate-400 mb-1">
+          <span>ความคืบหน้าการดึงข้อมูล</span>
+          <span id="progressText" class="font-bold text-yellow-400">0%</span>
+        </div>
+        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden p-0.5 border border-slate-800">
+          <div id="progressBar" class="bg-gradient-to-r from-yellow-500 to-amber-400 h-2 rounded-full transition-all duration-300 w-0"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- App System Navigation Tabs (Unlocked after Get Data) -->
+    <div id="systemArea" class="opacity-40 pointer-events-none transition-all duration-300">
+      <div class="flex overflow-x-auto gap-2 border-b border-slate-800 pb-2 mb-6 scrollbar-none">
+        <button onclick="requestStockAccess()" id="tab-addStock" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap bg-slate-800 text-slate-300 hover:bg-slate-700">
+          <i class="fa-solid fa-plus-circle mr-1"></i> เพิ่มสต็อกสินค้า (PIN)
+        </button>
+        <button onclick="switchTab('makeRTC')" id="tab-makeRTC" class="tab-btn active px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap bg-yellow-500 text-slate-950 font-bold">
+          <i class="fa-solid fa-barcode mr-1"></i> ทำรายการ RTC
+        </button>
+        <button onclick="switchTab('viewRTC')" id="tab-viewRTC" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap bg-slate-800 text-slate-300 hover:bg-slate-700">
+          <i class="fa-solid fa-list-check mr-1"></i> ดูสินค้า RTC ทั้งหมด
+        </button>
+        <button onclick="switchTab('reportRTC')" id="tab-reportRTC" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap bg-slate-800 text-slate-300 hover:bg-slate-700">
+          <i class="fa-solid fa-chart-pie mr-1"></i> รายงาน RTC ประจำเดือน
+        </button>
+      </div>
+
+      <!-- Tab 1: เพิ่มสต็อกสินค้า (PIN: 254903) -->
+      <section id="content-addStock" class="tab-content hidden glassmorphism p-6 rounded-2xl border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 class="text-lg font-bold text-yellow-400"><i class="fa-solid fa-boxes-packing mr-2"></i>เพิ่มสินค้าเข้าคลัง</h3>
+          <span class="text-xs bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full border border-amber-500/30"><i class="fa-solid fa-lock mr-1"></i> PIN Verified</span>
+        </div>
+        <form onsubmit="handleAddStock(event)" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="text-xs text-slate-400 block mb-1">รหัสบาร์โค้ด (รองรับเลข 0 นำหน้า)</label>
+              <input type="text" id="stockBarcode" placeholder="เช่น 0987" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-yellow-500">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1">ชื่อสินค้า</label>
+              <input type="text" id="stockName" placeholder="เช่น น้ำดื่ม 600ml" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-yellow-500">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400 block mb-1">ราคา (บาท)</label>
+              <input type="number" step="0.01" id="stockPrice" placeholder="เช่น 10.00" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-yellow-500">
+            </div>
+          </div>
+          <button type="submit" class="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold rounded-xl transition shadow-lg">
+            <i class="fa-solid fa-save mr-1"></i> บันทึกเข้าสต็อกสินค้า
+          </button>
+        </form>
+      </section>
+
+      <!-- Tab 2: ทำรายการ RTC -->
+      <section id="content-makeRTC" class="tab-content glassmorphism p-6 rounded-2xl border border-slate-800 space-y-4">
+        <h3 class="text-lg font-bold text-yellow-400 border-b border-slate-800 pb-3"><i class="fa-solid fa-clock-rotate-left mr-2"></i>ทำรายการ RTC สินค้า</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">กรอก/สแกน บาร์โค้ด</label>
+            <div class="flex gap-2">
+              <input type="text" id="rtcBarcode" oninput="searchProductByBarcode()" placeholder="กรอกบาร์โค้ดสินค้า" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-yellow-500">
+              <button type="button" onclick="searchProductByBarcode()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-yellow-400 rounded-xl border border-slate-700">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">วันหมดอายุ</label>
+            <input type="date" id="rtcExpDate" onchange="calculateRTCStatus()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-yellow-500">
+          </div>
+        </div>
+
+        <!-- Dynamic Product Preview Card -->
+        <div id="rtcProductPreview" class="hidden bg-slate-900/80 p-4 rounded-xl border border-slate-700 space-y-2">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div>
+              <h4 id="prevName" class="font-bold text-lg text-white">-</h4>
+              <p class="text-xs text-slate-400">บาร์โค้ด: <span id="prevBarcode" class="text-yellow-400 font-mono">-</span> | ราคา: <span id="prevPrice" class="text-emerald-400 font-semibold">-</span> บาท</p>
+            </div>
+            <span id="rtcBadgeAlert" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300">-</span>
+          </div>
+        </div>
+
+        <button onclick="saveRTCRecord()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition shadow-lg">
+          <i class="fa-solid fa-check-circle mr-1"></i> บันทึกข้อมูล RTC
+        </button>
+      </section>
+
+      <!-- Tab 3: ดูสินค้า RTC ทั้งหมด (เรียงวันใกล้หมดอายุก่อน) -->
+      <section id="content-viewRTC" class="tab-content hidden glassmorphism p-6 rounded-2xl border border-slate-800 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <h3 class="text-lg font-bold text-yellow-400"><i class="fa-solid fa-list mr-2"></i>รายการ RTC ทั้งหมด</h3>
+          <span class="text-xs text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20"><i class="fa-solid fa-arrow-down-short-wide mr-1"></i>เรียงตามวันใกล้หมดอายุก่อน</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-900 text-yellow-400 text-xs uppercase border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">บาร์โค้ด</th>
+                <th class="py-3 px-4">ชื่อสินค้า</th>
+                <th class="py-3 px-4">ราคา</th>
+                <th class="py-3 px-4">วันหมดอายุ</th>
+                <th class="py-3 px-4">สถานะ RTC</th>
+                <th class="py-3 px-4 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="rtcTableBody" class="divide-y divide-slate-800">
+              <tr><td colspan="6" class="py-6 text-center text-slate-500">ไม่มีข้อมูลสินค้า</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab 4: รายงาน RTC ประจำเดือน (เรียงวันใกล้หมดอายุก่อน) -->
+      <section id="content-reportRTC" class="tab-content hidden glassmorphism p-6 rounded-2xl border border-slate-800 space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h3 class="text-lg font-bold text-yellow-400"><i class="fa-solid fa-file-invoice mr-2"></i>รายงานสรุป RTC ประจำเดือน</h3>
+            <p class="text-xs text-slate-400">คำนวณและเรียงลำดับรายการสินค้าที่ใกล้หมดอายุก่อนขึ้นข้างบน</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-400">เลือกเดือน:</label>
+            <input type="month" id="reportMonth" onchange="generateMonthlyReport()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-white text-sm focus:outline-none focus:border-yellow-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+            <span class="text-xs text-amber-400 font-semibold">สินค้าติด RTC 30%</span>
+            <div id="statRtc30" class="text-2xl font-bold text-amber-300 mt-1">0 รายการ</div>
+          </div>
+          <div class="bg-red-500/10 border border-red-500/30 p-4 rounded-xl">
+            <span class="text-xs text-red-400 font-semibold">สินค้าติด RTC 50%</span>
+            <div id="statRtc50" class="text-2xl font-bold text-red-300 mt-1">0 รายการ</div>
+          </div>
+          <div class="bg-slate-800 border border-slate-700 p-4 rounded-xl">
+            <span class="text-xs text-slate-400 font-semibold">สินค้าหมดอายุในเดือนนี้</span>
+            <div id="statExpired" class="text-2xl font-bold text-slate-300 mt-1">0 รายการ</div>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <h4 class="font-bold text-slate-200 flex items-center justify-between">
+            <span>รายการสินค้าในเดือนนี้</span>
+            <span class="text-xs text-slate-400 font-normal">*เรียงตามวันหมดอายุใกล้สุดขึ้นก่อน</span>
+          </h4>
+          <div id="monthlyReportList" class="space-y-2"></div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- PIN Modal (254903) -->
+  <div id="pinModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+    <div class="glassmorphism w-full max-w-xs p-6 rounded-2xl border border-yellow-500/30 text-center space-y-4">
+      <div class="w-12 h-12 bg-yellow-500/20 text-yellow-400 rounded-full flex items-center justify-center mx-auto">
+        <i class="fa-solid fa-lock text-xl"></i>
+      </div>
+      <h3 class="font-bold text-lg text-white">กรุณากรอกรหัส PIN</h3>
+      <p class="text-xs text-slate-400">ใส่รหัส PIN เพื่อเพิ่มสินค้าเข้าสต็อก</p>
+      <input type="password" id="pinInput" maxlength="6" placeholder="******" class="w-full text-center tracking-widest text-2xl bg-slate-900 border border-slate-700 rounded-xl py-2.5 text-white focus:outline-none focus:border-yellow-500">
+      <div class="flex gap-2">
+        <button onclick="closePinModal()" class="w-1/2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm">ยกเลิก</button>
+        <button onclick="verifyPin()" class="w-1/2 py-2 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold rounded-xl text-sm">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let appData = { inventory: [], rtcList: [] };
+    let isDataLoaded = false;
+
+    document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
+
+    function handleLogin() {
+      const u = document.getElementById('loginUser').value.trim();
+      const p = document.getElementById('loginPass').value.trim();
+      if (u === "1886" && p === "1234") {
+        document.getElementById('loginModal').classList.add('hidden');
+      } else {
+        alert("Username หรือ Password ไม่ถูกต้อง!");
+      }
+    }
+
+    async function fetchAppData() {
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      const btn = document.getElementById('btnGetData');
+
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+      let progress = 10;
+      progressBar.style.width = progress + '%';
+      progressText.innerText = progress + '%';
+
+      try {
+        const interval = setInterval(() => {
+          if (progress < 85) {
+            progress += 15;
+            progressBar.style.width = progress + '%';
+            progressText.innerText = progress + '%';
+          }
+        }, 150);
+
+        const response = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: "getAllData" })
+        });
+        const result = await response.json();
+        clearInterval(interval);
+
+        if (result.success) {
+          appData.inventory = result.inventory || [];
+          appData.rtcList = result.rtcList || [];
+          
+          progressBar.style.width = '100%';
+          progressText.innerText = '100%';
+          isDataLoaded = true;
+
+          document.getElementById('systemArea').classList.remove('opacity-40', 'pointer-events-none');
+          const badge = document.getElementById('dataStatusBadge');
+          badge.className = "text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30";
+          badge.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ข้อมูลพร้อมใช้งาน';
+
+          renderRTCList();
+          generateMonthlyReport();
+        } else {
+          alert("เกิดข้อผิดพลาดในการโหลดข้อมูล: " + result.error);
+        }
+      } catch (err) {
+        alert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบ SCRIPT_URL");
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+      }
+    }
+
+    function switchTab(tabName) {
+      if (!isDataLoaded) {
+        alert("กรุณากด GET DATA ก่อนใช้งานระบบ!");
+        return;
+      }
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = "tab-btn px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap bg-slate-800 text-slate-300 hover:bg-slate-700";
+      });
+      document.getElementById(`tab-${tabName}`).className = "tab-btn active px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap bg-yellow-500 text-slate-950 font-bold";
+
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById(`content-${tabName}`).classList.remove('hidden');
+    }
+
+    function requestStockAccess() {
+      if (!isDataLoaded) {
+        alert("กรุณากด GET DATA ก่อนใช้งานระบบ!");
+        return;
+      }
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinModal').classList.remove('hidden');
+    }
+
+    function verifyPin() {
+      const pin = document.getElementById('pinInput').value.trim();
+      if (pin === "254903") {
+        document.getElementById('pinModal').classList.add('hidden');
+        switchTab('addStock');
+      } else {
+        alert("รหัส PIN ไม่ถูกต้อง!");
+      }
+    }
+
+    function closePinModal() {
+      document.getElementById('pinModal').classList.add('hidden');
+    }
+
+    async function handleAddStock(e) {
+      e.preventDefault();
+      const barcode = document.getElementById('stockBarcode').value.trim();
+      const name = document.getElementById('stockName').value.trim();
+      const price = parseFloat(document.getElementById('stockPrice').value);
+
+      if (!barcode || !name || isNaN(price)) return;
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: "addStock", barcode, name, price })
+        });
+        const result = await res.json();
+        if (result.success) {
+          alert("เพิ่มสินค้าเข้าสต็อกเรียบร้อยแล้ว!");
+          appData.inventory.push({ Barcode: barcode, Name: name, Price: price });
+          document.getElementById('stockBarcode').value = '';
+          document.getElementById('stockName').value = '';
+          document.getElementById('stockPrice').value = '';
+        }
+      } catch (err) {
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      }
+    }
+
+    function searchProductByBarcode() {
+      const bc = document.getElementById('rtcBarcode').value.trim();
+      if (!bc) {
+        document.getElementById('rtcProductPreview').classList.add('hidden');
+        return;
+      }
+
+      const item = appData.inventory.find(i => String(i.Barcode) === String(bc));
+      const previewCard = document.getElementById('rtcProductPreview');
+      
+      if (item) {
+        previewCard.classList.remove('hidden');
+        document.getElementById('prevName').innerText = item.Name;
+        document.getElementById('prevBarcode').innerText = item.Barcode;
+        document.getElementById('prevPrice').innerText = Number(item.Price).toFixed(2);
+        calculateRTCStatus();
+      } else {
+        previewCard.classList.add('hidden');
+      }
+    }
+
+    function calculateRTCStatus() {
+      const expVal = document.getElementById('rtcExpDate').value;
+      const alertBadge = document.getElementById('rtcBadgeAlert');
+      
+      if (!expVal) return;
+
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const expDate = new Date(expVal);
+      expDate.setHours(0,0,0,0);
+
+      const diffTime = expDate - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-500/20 text-gray-400 border border-gray-500/30";
+        alertBadge.innerText = "หมดอายุแล้ว (กดลบออกได้)";
+      } else if (diffDays <= 15) {
+        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30";
+        alertBadge.innerText = "ติด RTC 50% (หมดอายุใน " + diffDays + " วัน)";
+      } else if (diffDays <= 30) {
+        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        alertBadge.innerText = "ติด RTC 30% (หมดอายุใน " + diffDays + " วัน)";
+      } else {
+        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        alertBadge.innerText = "รอทำ RTC (หมดอายุใน " + diffDays + " วัน)";
+      }
+    }
+
+    async function saveRTCRecord() {
+      const barcode = document.getElementById('prevBarcode').innerText;
+      const name = document.getElementById('prevName').innerText;
+      const price = document.getElementById('prevPrice').innerText;
+      const expDate = document.getElementById('rtcExpDate').value;
+      const alertBadgeText = document.getElementById('rtcBadgeAlert').innerText;
+
+      if (!expDate || barcode === '-') {
+        alert("กรุณากรอกข้อมูลและเลือกวันหมดอายุให้ถูกต้อง");
+        return;
+      }
+
+      let status = "รอทำ RTC";
+      if (alertBadgeText.includes("RTC 50%")) status = "RTC 50%";
+      else if (alertBadgeText.includes("RTC 30%")) status = "RTC 30%";
+      else if (alertBadgeText.includes("หมดอายุแล้ว")) status = "หมดอายุแล้ว";
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: "addRTC", barcode, name, price, expDate, status })
+        });
+        const result = await res.json();
+        if (result.success) {
+          alert("บันทึกข้อมูล RTC เรียบร้อยแล้ว!");
+          appData.rtcList.push({ Barcode: barcode, Name: name, Price: price, ExpDate: expDate, Status: status });
+          renderRTCList();
+          generateMonthlyReport();
+        }
+      } catch (err) {
+        alert("เกิดข้อผิดพลาดในการบันทึก");
+      }
+    }
+
+    // Render list sorted by nearest expiration date
+    function renderRTCList() {
+      const tbody = document.getElementById('rtcTableBody');
+      tbody.innerHTML = '';
+
+      if (appData.rtcList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">ไม่มีข้อมูล RTC</td></tr>';
+        return;
+      }
+
+      const sorted = [...appData.rtcList].sort((a, b) => new Date(a.ExpDate) - new Date(b.ExpDate));
+
+      sorted.forEach(item => {
+        let badgeClass = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        if (item.Status === "RTC 30%") badgeClass = "bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        if (item.Status === "RTC 50%") badgeClass = "bg-red-500/20 text-red-400 border border-red-500/30";
+        if (item.Status === "หมดอายุแล้ว") badgeClass = "bg-gray-500/20 text-gray-400 border border-gray-500/30";
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/50 transition border-b border-slate-800/50";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono text-yellow-400">${item.Barcode}</td>
+          <td class="py-3 px-4 font-semibold text-white">${item.Name}</td>
+          <td class="py-3 px-4">${Number(item.Price).toFixed(2)} ฿</td>
+          <td class="py-3 px-4">${item.ExpDate}</td>
+          <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">${item.Status}</span></td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="deleteRTCItem('${item.Barcode}', '${item.ExpDate}')" class="text-red-400 hover:text-red-300 p-1">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function deleteRTCItem(barcode, expDate) {
+      if (!confirm("คุณต้องการลบรายการนี้ใช่หรือไม่?")) return;
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: "deleteRTC", barcode, expDate })
+        });
+        const result = await res.json();
+        if (result.success) {
+          appData.rtcList = appData.rtcList.filter(i => !(String(i.Barcode) === String(barcode) && String(i.ExpDate) === String(expDate)));
+          renderRTCList();
+          generateMonthlyReport();
+        }
+      } catch (err) {
+        alert("เกิดข้อผิดพลาดในการลบรายการ");
+      }
+    }
+
+    // Monthly Report (Sorted by nearest expiration date first)
+    function generateMonthlyReport() {
+      const monthVal = document.getElementById('reportMonth').value;
+      if (!monthVal) return;
+
+      const monthlyItems = appData.rtcList.filter(i => String(i.ExpDate).startsWith(monthVal));
+      monthlyItems.sort((a, b) => new Date(a.ExpDate) - new Date(b.ExpDate));
+
+      let count30 = 0, count50 = 0, countExp = 0;
+      const reportList = document.getElementById('monthlyReportList');
+      reportList.innerHTML = '';
+
+      if (monthlyItems.length === 0) {
+        reportList.innerHTML = '<div class="text-sm text-slate-500 py-6 text-center">ไม่มีรายการ RTC หรือหมดอายุในเดือนที่เลือก</div>';
+      } else {
+        monthlyItems.forEach(item => {
+          if (item.Status === "RTC 30%") count30++;
+          if (item.Status === "RTC 50%") count50++;
+          if (item.Status === "หมดอายุแล้ว") countExp++;
+
+          let statusBadgeClass = "text-emerald-400";
+          if (item.Status === "RTC 30%") statusBadgeClass = "text-amber-400";
+          if (item.Status === "RTC 50%") statusBadgeClass = "text-red-400";
+          if (item.Status === "หมดอายุแล้ว") statusBadgeClass = "text-gray-400";
+
+          const div = document.createElement('div');
+          div.className = "flex items-center justify-between bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 hover:border-slate-700 transition";
+          div.innerHTML = `
+            <div>
+              <div class="font-bold text-slate-100">${item.Name}</div>
+              <div class="text-xs text-slate-400 mt-0.5">
+                บาร์โค้ด: <span class="text-yellow-400 font-mono">${item.Barcode}</span> | วันหมดอายุ: <span class="text-slate-200 font-semibold">${item.ExpDate}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-bold text-emerald-400">${Number(item.Price).toFixed(2)} ฿</div>
+              <div class="text-xs font-bold ${statusBadgeClass} mt-0.5">${item.Status}</div>
+            </div>
+          `;
+          reportList.appendChild(div);
+        });
+      }
+
+      document.getElementById('statRtc30').innerText = count30 + " รายการ";
+      document.getElementById('statRtc50').innerText = count50 + " รายการ";
+      document.getElementById('statExpired').innerText = countExp + " รายการ";
+    }
+  </script>
+</body>
+</html>
