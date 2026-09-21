@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RTC TTV25 - Management System</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
@@ -28,7 +31,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
 
-  <!-- นำ URL ที่ได้จาก Google Apps Script มาวางแทนที่ตรงนี้ -->
+  <!-- นำ Web App URL จาก Google Apps Script มาวางแทนที่บรรทัดนี้ -->
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzJsvDk5LbUe_ER4bNyG_6mdThvRUMWxG84QHtTa7QXrO5JQY2ZA7Jpnlo-nsc_RoNH/exec";
   </script>
@@ -273,7 +276,7 @@
 
     document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
 
-    // Centralised Helper Function to Calculate Real-time RTC Status
+    // ฟังก์ชันคำนวณสถานะ RTC แบบเรียลไทม์เปรียบเทียบกับ "วันที่ปัจจุบัน"
     function getRTCStatus(expDateStr) {
       if (!expDateStr) return { status: "รอทำ RTC", badgeClass: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30", alertText: "-" };
 
@@ -281,7 +284,7 @@
       if (parts.length !== 3) return { status: "รอทำ RTC", badgeClass: "", alertText: "-" };
 
       let expYear = parseInt(parts[0], 10);
-      if (expYear > 2400) expYear -= 543; // Handle BE to CE
+      if (expYear > 2400) expYear -= 543; // แปลง พ.ศ. เป็น ค.ศ.
       const expMonth = parseInt(parts[1], 10) - 1;
       const expDay = parseInt(parts[2], 10);
 
@@ -522,13 +525,13 @@
       }
     }
 
-    // Render List Sorted with Real-time RTC Status Calculation
+    // แสดงรายการ RTC ทั้งหมด (คำนวณสถานะใหม่และเรียงลำดับตามวันใกล้หมดอายุก่อน)
     function renderRTCList() {
       const tbody = document.getElementById('rtcTableBody');
       tbody.innerHTML = '';
 
       if (!appData.rtcList || appData.rtcList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">ไม่มีข้อมูล RTC</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">ไม่มีข้อมูลสินค้า</td></tr>';
         return;
       }
 
@@ -575,7 +578,7 @@
       }
     }
 
-    // Monthly Report with Real-time RTC Status Recalculation
+    // สรุปรายงานประจำเดือน (คำนวณสถานะใหม่และเรียงลำดับตามวันใกล้หมดอายุก่อน)
     function generateMonthlyReport() {
       const monthVal = document.getElementById('reportMonth').value;
       if (!monthVal) return;
