@@ -30,7 +30,7 @@
 
   <!-- นำ URL ที่ได้จาก Google Apps Script มาวางแทนที่ตรงนี้ -->
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzJsvDk5LbUe_ER4bNyG_6mdThvRUMWxG84QHtTa7QXrO5JQY2ZA7Jpnlo-nsc_RoNH/exec";
+    const SCRIPT_URL = "วาง_URL_GOOGLE_APPS_SCRIPT_ที่นี่";
   </script>
 
   <!-- Login Modal (User: 1886 / Pass: 1234) -->
@@ -166,7 +166,7 @@
 
           <div>
             <label class="text-xs text-slate-400 block mb-1">วันหมดอายุ</label>
-            <input type="date" id="rtcExpDate" onchange="calculateRTCStatus()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-yellow-500">
+            <input type="date" id="rtcExpDate" oninput="calculateRTCStatus()" onchange="calculateRTCStatus()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-yellow-500">
           </div>
         </div>
 
@@ -272,6 +272,54 @@
     let isDataLoaded = false;
 
     document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
+
+    // Centralised Helper Function to Calculate Real-time RTC Status
+    function getRTCStatus(expDateStr) {
+      if (!expDateStr) return { status: "รอทำ RTC", badgeClass: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30", alertText: "-" };
+
+      const parts = String(expDateStr).split('-');
+      if (parts.length !== 3) return { status: "รอทำ RTC", badgeClass: "", alertText: "-" };
+
+      let expYear = parseInt(parts[0], 10);
+      if (expYear > 2400) expYear -= 543; // Handle BE to CE
+      const expMonth = parseInt(parts[1], 10) - 1;
+      const expDay = parseInt(parts[2], 10);
+
+      const expDate = new Date(expYear, expMonth, expDay);
+      expDate.setHours(0, 0, 0, 0);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const diffTime = expDate.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        return {
+          status: "หมดอายุแล้ว",
+          badgeClass: "bg-gray-500/20 text-gray-400 border border-gray-500/30",
+          alertText: "หมดอายุแล้ว (กดลบออกได้)"
+        };
+      } else if (diffDays <= 15) {
+        return {
+          status: "RTC 50%",
+          badgeClass: "bg-red-500/20 text-red-400 border border-red-500/30",
+          alertText: "ติด RTC 50% (หมดอายุใน " + diffDays + " วัน)"
+        };
+      } else if (diffDays <= 30) {
+        return {
+          status: "RTC 30%",
+          badgeClass: "bg-amber-500/20 text-amber-400 border border-amber-500/30",
+          alertText: "ติด RTC 30% (หมดอายุใน " + diffDays + " วัน)"
+        };
+      } else {
+        return {
+          status: "รอทำ RTC",
+          badgeClass: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30",
+          alertText: "รอทำ RTC (หมดอายุใน " + diffDays + " วัน)"
+        };
+      }
+    }
 
     function handleLogin() {
       const u = document.getElementById('loginUser').value.trim();
@@ -426,29 +474,15 @@
       const expVal = document.getElementById('rtcExpDate').value;
       const alertBadge = document.getElementById('rtcBadgeAlert');
       
-      if (!expVal) return;
-
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const expDate = new Date(expVal);
-      expDate.setHours(0,0,0,0);
-
-      const diffTime = expDate - today;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays < 0) {
-        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-500/20 text-gray-400 border border-gray-500/30";
-        alertBadge.innerText = "หมดอายุแล้ว (กดลบออกได้)";
-      } else if (diffDays <= 15) {
-        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30";
-        alertBadge.innerText = "ติด RTC 50% (หมดอายุใน " + diffDays + " วัน)";
-      } else if (diffDays <= 30) {
-        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
-        alertBadge.innerText = "ติด RTC 30% (หมดอายุใน " + diffDays + " วัน)";
-      } else {
-        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-        alertBadge.innerText = "รอทำ RTC (หมดอายุใน " + diffDays + " วัน)";
+      if (!expVal) {
+        alertBadge.innerText = "-";
+        alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300";
+        return;
       }
+
+      const info = getRTCStatus(expVal);
+      alertBadge.className = "px-3 py-1 rounded-full text-xs font-bold " + info.badgeClass;
+      alertBadge.innerText = info.alertText;
     }
 
     async function saveRTCRecord() {
@@ -456,17 +490,14 @@
       const name = document.getElementById('prevName').innerText;
       const price = document.getElementById('prevPrice').innerText;
       const expDate = document.getElementById('rtcExpDate').value;
-      const alertBadgeText = document.getElementById('rtcBadgeAlert').innerText;
 
-      if (!expDate || barcode === '-') {
+      if (!expDate || barcode === '-' || barcode === '') {
         alert("กรุณากรอกข้อมูลและเลือกวันหมดอายุให้ถูกต้อง");
         return;
       }
 
-      let status = "รอทำ RTC";
-      if (alertBadgeText.includes("RTC 50%")) status = "RTC 50%";
-      else if (alertBadgeText.includes("RTC 30%")) status = "RTC 30%";
-      else if (alertBadgeText.includes("หมดอายุแล้ว")) status = "หมดอายุแล้ว";
+      const info = getRTCStatus(expDate);
+      const status = info.status;
 
       try {
         const res = await fetch(SCRIPT_URL, {
@@ -478,6 +509,11 @@
         if (result.success) {
           alert("บันทึกข้อมูล RTC เรียบร้อยแล้ว!");
           appData.rtcList.push({ Barcode: barcode, Name: name, Price: price, ExpDate: expDate, Status: status });
+          
+          document.getElementById('rtcBarcode').value = '';
+          document.getElementById('rtcExpDate').value = '';
+          document.getElementById('rtcProductPreview').classList.add('hidden');
+
           renderRTCList();
           generateMonthlyReport();
         }
@@ -486,12 +522,12 @@
       }
     }
 
-    // Render list sorted by nearest expiration date
+    // Render List Sorted with Real-time RTC Status Calculation
     function renderRTCList() {
       const tbody = document.getElementById('rtcTableBody');
       tbody.innerHTML = '';
 
-      if (appData.rtcList.length === 0) {
+      if (!appData.rtcList || appData.rtcList.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">ไม่มีข้อมูล RTC</td></tr>';
         return;
       }
@@ -499,10 +535,7 @@
       const sorted = [...appData.rtcList].sort((a, b) => new Date(a.ExpDate) - new Date(b.ExpDate));
 
       sorted.forEach(item => {
-        let badgeClass = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-        if (item.Status === "RTC 30%") badgeClass = "bg-amber-500/20 text-amber-400 border border-amber-500/30";
-        if (item.Status === "RTC 50%") badgeClass = "bg-red-500/20 text-red-400 border border-red-500/30";
-        if (item.Status === "หมดอายุแล้ว") badgeClass = "bg-gray-500/20 text-gray-400 border border-gray-500/30";
+        const rtcInfo = getRTCStatus(item.ExpDate);
 
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-900/50 transition border-b border-slate-800/50";
@@ -511,9 +544,9 @@
           <td class="py-3 px-4 font-semibold text-white">${item.Name}</td>
           <td class="py-3 px-4">${Number(item.Price).toFixed(2)} ฿</td>
           <td class="py-3 px-4">${item.ExpDate}</td>
-          <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">${item.Status}</span></td>
+          <td class="py-3 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${rtcInfo.badgeClass}">${rtcInfo.status}</span></td>
           <td class="py-3 px-4 text-center">
-            <button onclick="deleteRTCItem('${item.Barcode}', '${item.ExpDate}')" class="text-red-400 hover:text-red-300 p-1">
+            <button onclick="deleteRTCItem('${item.Barcode}', '${item.ExpDate}')" class="text-red-400 hover:text-red-300 p-1" title="ลบรายการ">
               <i class="fa-solid fa-trash-can"></i>
             </button>
           </td>
@@ -542,7 +575,7 @@
       }
     }
 
-    // Monthly Report (Sorted by nearest expiration date first)
+    // Monthly Report with Real-time RTC Status Recalculation
     function generateMonthlyReport() {
       const monthVal = document.getElementById('reportMonth').value;
       if (!monthVal) return;
@@ -558,14 +591,11 @@
         reportList.innerHTML = '<div class="text-sm text-slate-500 py-6 text-center">ไม่มีรายการ RTC หรือหมดอายุในเดือนที่เลือก</div>';
       } else {
         monthlyItems.forEach(item => {
-          if (item.Status === "RTC 30%") count30++;
-          if (item.Status === "RTC 50%") count50++;
-          if (item.Status === "หมดอายุแล้ว") countExp++;
+          const rtcInfo = getRTCStatus(item.ExpDate);
 
-          let statusBadgeClass = "text-emerald-400";
-          if (item.Status === "RTC 30%") statusBadgeClass = "text-amber-400";
-          if (item.Status === "RTC 50%") statusBadgeClass = "text-red-400";
-          if (item.Status === "หมดอายุแล้ว") statusBadgeClass = "text-gray-400";
+          if (rtcInfo.status === "RTC 30%") count30++;
+          if (rtcInfo.status === "RTC 50%") count50++;
+          if (rtcInfo.status === "หมดอายุแล้ว") countExp++;
 
           const div = document.createElement('div');
           div.className = "flex items-center justify-between bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 hover:border-slate-700 transition";
@@ -578,7 +608,7 @@
             </div>
             <div class="text-right">
               <div class="text-sm font-bold text-emerald-400">${Number(item.Price).toFixed(2)} ฿</div>
-              <div class="text-xs font-bold ${statusBadgeClass} mt-0.5">${item.Status}</div>
+              <div class="text-xs font-bold mt-0.5"><span class="px-2.5 py-0.5 rounded-full ${rtcInfo.badgeClass}">${rtcInfo.status}</span></div>
             </div>
           `;
           reportList.appendChild(div);
